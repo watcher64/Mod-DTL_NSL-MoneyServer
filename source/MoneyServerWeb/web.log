@@ -1,0 +1,14 @@
+2009-04-03 14:51:38,928 INFO Confirm - User:23cc97ee-6fa1-46cc-83bd-80fdafc1255a@127.0.0.1 has accepted the transaction:00fe281a-4331-4530-8a8e-86ce88dfd7d3 
+2009-04-03 14:51:39,922 INFO Confirm - Transaction:00fe281a-4331-4530-8a8e-86ce88dfd7d3 finished successfully 
+2009-04-03 14:54:33,277 INFO Confirm - User:ab075546-ac0f-4435-b43c-f5089487e375@127.0.0.1 has accepted the transaction:68f76517-9ac2-41da-b37f-eaf23ec66fe5 
+2009-04-03 14:54:34,235 INFO Confirm - Transaction:68f76517-9ac2-41da-b37f-eaf23ec66fe5 finished successfully 
+2009-04-03 14:57:19,943 INFO Confirm - User:23cc97ee-6fa1-46cc-83bd-80fdafc1255a@127.0.0.1 has accepted the transaction:41ce9b36-7559-4e52-855a-93b1f9b56040 
+2009-04-03 15:02:54,194 INFO Confirm - User:23cc97ee-6fa1-46cc-83bd-80fdafc1255a@127.0.0.1 has accepted the transaction:f9bf81c5-a64e-4e4b-8bc7-cc5551a3b6a2 
+2009-04-03 15:06:41,001 INFO Confirm - User:23cc97ee-6fa1-46cc-83bd-80fdafc1255a@127.0.0.1 has accepted the transaction:297090a7-1b71-4c0d-9378-2c7798332ff2 
+2009-04-03 15:06:45,674 INFO Confirm - Transaction:297090a7-1b71-4c0d-9378-2c7798332ff2 finished successfully 
+2009-04-03 15:07:33,578 INFO Confirm - User:23cc97ee-6fa1-46cc-83bd-80fdafc1255a@127.0.0.1 has accepted the transaction:07695ff4-984b-4864-9869-0f217ec06d58 
+2009-04-03 15:07:56,914 INFO Confirm - Transaction:07695ff4-984b-4864-9869-0f217ec06d58 finished successfully 
+2009-04-03 16:37:28,950 INFO Confirm - User:23cc97ee-6fa1-46cc-83bd-80fdafc1255a@127.0.0.1 has canceled the transaction:f9bf81c5-a64e-4e4b-8bc7-cc5551a3b6a2 
+2009-04-03 16:37:29,293 INFO Confirm - Transaction:f9bf81c5-a64e-4e4b-8bc7-cc5551a3b6a2 canceled successfully 
+2009-04-03 16:57:24,000 INFO Confirm - User:23cc97ee-6fa1-46cc-83bd-80fdafc1255a@127.0.0.1 has canceled the transaction:f9bf81c5-a64e-4e4b-8bc7-cc5551a3b6a2 
+2009-04-03 16:57:24,401 INFO Confirm - Transaction:f9bf81c5-a64e-4e4b-8bc7-cc5551a3b6a2 canceled successfully 
