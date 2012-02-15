@@ -55,6 +55,7 @@ namespace OpenSim.Grid.MoneyServer
 		private static readonly ILog m_log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
 
 		private int    m_defaultBalance  = 0;
+		private string m_confirmURI = string.Empty; //reintroduced
 		//
 		private bool   m_forceTransfer   = false;
 		private string m_bankerAvatar    = "";
@@ -114,6 +115,7 @@ namespace OpenSim.Grid.MoneyServer
 			m_config = config;
 
 			m_defaultBalance = m_config.GetInt("DefaultBalance", 1000);
+			m_confirmURI = m_config.GetString("ConfirmURL", "https://SampleServer.com/confirm.aspx");  //reintroduced
 
 			string ftrans   = m_config.GetString ("enableForceTransfer", "false");
 			if (ftrans.ToLower()=="true") m_forceTransfer = true;
@@ -177,6 +179,7 @@ namespace OpenSim.Grid.MoneyServer
 			m_httpServer.AddXmlRPCHandler("PayMoneyCharge", handlePayMoneyCharge);				// added
 			m_httpServer.AddXmlRPCHandler("AddBankerMoney", handleAddBankerMoney);				// added
 			m_httpServer.AddXmlRPCHandler("SendMoneyBalance", handleSendMoneyBalance);			// added
+			m_httpServer.AddXmlRPCHandler("ConfirmTransfer", handleConfirmTransfer);            //reintroduced
 
 			// this is from original DTL. not check yet.
 			m_httpServer.AddXmlRPCHandler("WebLogin", handleWebLogin);
@@ -303,7 +306,7 @@ namespace OpenSim.Grid.MoneyServer
 
 		//
 		// deleted using ASP.NET  by Fumi.Iseki
-		//
+		// reintroduced by unethika
 		/// <summary>
 		/// handle incoming transaction
 		/// </summary>
@@ -382,12 +385,22 @@ namespace OpenSim.Grid.MoneyServer
 						bool result = m_moneyDBService.addTransaction(transaction);
 						if (result) 
 						{
+
+						    //send a confirm URL to user via HTTPS.
+                            m_log.InfoFormat("[Money] Sending confirm link to client:{0},please wait",
+                                                      senderID);
+                            Hashtable confirmTable = new Hashtable();
+                            confirmTable["clientUUID"] = senderID;
+                            confirmTable["clientSessionID"] = senderSessionID;
+                            confirmTable["clientSecureSessionID"] = senderSecureSessionID;
+                            confirmTable["URI"] = m_confirmURI + "?transactionID=" + transactionUUID.ToString() + "&secureCode=" + transaction.SecureCode ;
+							
 							UserInfo user = m_moneyDBService.FetchUserInfo(fmID);
 							if (user!=null) 
 							{
 								if (amount!=0)
 								{
-									string snd_message = "";
+								/*  string snd_message = "";
 									string rcv_message = "";
 
 									if (transaction.Type==(int)TransactionType.Gift) {
@@ -403,9 +416,23 @@ namespace OpenSim.Grid.MoneyServer
 									}
 									else if (transaction.Type==(int)TransactionType.ObjectPays) {		// ObjectGiveMoney
 										rcv_message = m_BalanceMessageGetMoney;
+									} */
+									Hashtable resultTable = genericCurrencyXMLRPCRequest(confirmTable, "SendConfirmLink", user.SimIP);
+
+
+									if (resultTable != null && resultTable.ContainsKey("success"))
+									{
+										if ((bool)resultTable["success"])
+										{
+											m_log.InfoFormat("[Money] Sent confirm link to client:{0} successfully",
+                                                          senderID);
+
+											responseData["success"] = true;
+											return response;
+										}
 									}
 						
-									responseData["success"] = NotifyTransfer(transactionUUID, snd_message, rcv_message);
+									//responseData["success"] = NotifyTransfer(transactionUUID, snd_message, rcv_message);
 								}
 								else
 								{
@@ -926,7 +953,80 @@ namespace OpenSim.Grid.MoneyServer
 			responseData["message"] = "Session check failure, please re-login later!";
 			return response;
 		}
+		
+		//
+		//  rentroduced a modified handleConfirmTransfer by unethika
+		/// <summary>
+		/// Continue transaction with confirm.
+		/// </summary>
+		/// <param name="transactionUUID"></param>
+		/// <returns></returns>
+		//public bool  NotifyTransfer(UUID transactionUUID, string msg2sender, string msg2receiver)
+        public XmlRpcResponse handleConfirmTransfer(XmlRpcRequest request, IPEndPoint remoteClient)
+        {
+            Hashtable requestData = (Hashtable)request.Params[0];
+            XmlRpcResponse response = new XmlRpcResponse();
+            Hashtable responseData = new Hashtable();
 
+            string secureCode = string.Empty;
+            string transactionID = string.Empty;
+            UUID transactionUUID = UUID.Zero;
+
+            response.Value = responseData;
+
+            if (requestData.ContainsKey("secureCode"))
+                secureCode = (string)requestData["secureCode"];
+            if (requestData.ContainsKey("transactionID"))
+            {
+                transactionID = (string)requestData["transactionID"];
+                UUID.TryParse(transactionID,out transactionUUID);
+            }
+            if (string.IsNullOrEmpty(secureCode) || string.IsNullOrEmpty(transactionID))
+            {
+                responseData["success"] = false;
+                m_log.Error("[Money] secureCode or transactionID can't be empty");
+                return response;
+            }
+
+            //m_log.InfoFormat("[Money] User has accepted the transaction,now continue with the transaction");
+		
+			m_log.InfoFormat("[MONEY RPC] NotifyTransfer: User has accepted the transaction, now continue with the transaction");
+
+			try
+			{
+			if (m_moneyDBService.ValidateTransfer(secureCode, transactionUUID))
+            {
+                TransactionData transaction = m_moneyDBService.FetchTransaction(transactionUUID);
+                string snd_message = "";
+				string rcv_message = "";
+
+				if (transaction.Type==(int)TransactionType.Gift) {
+					snd_message = m_BalanceMessageSendGift;
+					rcv_message = m_BalanceMessageReceiveGift;
+				}
+				else if (transaction.Type==(int)TransactionType.LandSale) {
+					snd_message = m_BalanceMessageLandSale;
+					rcv_message = m_BalanceMessageRcvLandSale;
+				}
+				else if (transaction.Type==(int)TransactionType.PayObject) {
+					snd_message = m_BalanceMessageBuyObject;
+				}
+				else if (transaction.Type==(int)TransactionType.ObjectPays) {		// ObjectGiveMoney
+					rcv_message = m_BalanceMessageGetMoney;
+                }
+                if (NotifyTransfer(transactionUUID, snd_message, rcv_message))
+                    {
+                    return response;
+                    }
+				}
+			    m_log.ErrorFormat("[MONEY RPC] NotifyTransfer: Transaction {0} failed", transactionUUID.ToString());
+			}
+			catch (Exception e)
+			{
+				m_log.ErrorFormat("[MONEY RPC] NotifyTransfer: exception occurred when transaction {0}: {1}", transactionUUID.ToString(), e.ToString());
+			}
+			return response;
+		}
 
 
 		//

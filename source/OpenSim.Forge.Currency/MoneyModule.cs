@@ -246,6 +246,7 @@ namespace OpenSim.Forge.Currency
 						HttpServer.AddXmlRPCHandler("GetBalance", GetBalanceHandler);						// added
 						HttpServer.AddXmlRPCHandler("AddBankerMoney", AddBankerMoneyHandler);				// added
 						HttpServer.AddXmlRPCHandler("SendMoneyBalance",  SendMoneyBalanceHandler);			// added
+						HttpServer.AddXmlRPCHandler("SendConfirmLink", SendConfirmLinkHandler);				// reintroduced
 						//HttpServer.AddXmlRPCHandler("UploadCovered", UploadCoveredHandler);				// added for Aurora-Sim
 						//HttpServer.AddXmlRPCHandler("UploadCharge",  UploadChargeHandler);				// added for Aurora-Sim
 
@@ -255,6 +256,7 @@ namespace OpenSim.Forge.Currency
 						MainServer.Instance.AddXmlRPCHandler("GetBalance", GetBalanceHandler);				// added
 						MainServer.Instance.AddXmlRPCHandler("AddBankerMoney", AddBankerMoneyHandler);		// added
 						MainServer.Instance.AddXmlRPCHandler("SendMoneyBalance",  SendMoneyBalanceHandler);	// added
+						MainServer.Instance.AddXmlRPCHandler("SendConfirmLink", SendConfirmLinkHandler);    // reintroduced
 						//MainServer.Instance.AddXmlRPCHandler("UploadCovered", UploadCoveredHandler);		// added for Aurora-Sim
 						//MainServer.Instance.AddXmlRPCHandler("UploadCharge",  UploadChargeHandler);		// added for Aurora-Sim
 					}
@@ -391,21 +393,23 @@ namespace OpenSim.Forge.Currency
 
 		public int GetBalance(UUID agentID)
 		{
-			IClientAPI client = GetLocateClient(agentID);;
+			IClientAPI client = GetLocateClient(agentID);
 			return QueryBalanceFromMoneyServer(client);
 		}
 
 
-		public bool UploadCovered(IClientAPI client, int amount)
+		public bool UploadCovered(UUID agentID, int amount)
 		{
+			IClientAPI client = GetLocateClient(agentID);
 			int balance = QueryBalanceFromMoneyServer(client);
 			if (balance<amount) return false;
 			return true;
 		}
 
 
-		public bool AmountCovered(IClientAPI client, int amount)
+		public bool AmountCovered(UUID agentID, int amount)
 		{
+			IClientAPI client = GetLocateClient(agentID);
 			int balance = QueryBalanceFromMoneyServer(client);
 			if (balance<amount) return false;
 			return true;
@@ -914,6 +918,74 @@ namespace OpenSim.Forge.Currency
 		}
 
 
+		// "SendConfirmLink" RPC from MoneyServer
+		public XmlRpcResponse SendConfirmLinkHandler(XmlRpcRequest request,  IPEndPoint remoteClient)
+        {
+            bool ret = false;
+
+            #region confirm the request and send out confirm link.
+
+            if (request.Params.Count > 0)
+            {
+                Hashtable requestParam = (Hashtable)request.Params[0];
+                if (requestParam.Contains("clientUUID") &&
+                    requestParam.Contains("clientSessionID") &&
+                    requestParam.Contains("clientSecureSessionID"))
+                {
+                    UUID clientUUID = UUID.Zero;
+                    UUID.TryParse((string)requestParam["clientUUID"], out clientUUID);
+                    if (clientUUID != UUID.Zero)
+                    {
+                        IClientAPI client = GetLocateClient(clientUUID);
+                        if (client != null &&
+                            client.SessionId.ToString() == (string)requestParam["clientSessionID"] &&
+                            client.SecureSessionId.ToString() == (string)requestParam["clientSecureSessionID"])
+                        {
+                            if (requestParam.Contains("URI"))
+                            {
+                                // Show the notice for user to confirm the link in IM.
+                                GridInstantMessage gridMsg_notice = new GridInstantMessage(null,
+                                                                                           UUID.Zero,
+                                                                                           "MonyServer",
+                                                                                           new UUID(clientUUID.ToString()),
+                                                                                           (byte)InstantMessageDialog.MessageBox,
+                                                                                           "Please clink the URI in IM window to confirm your purchase.",
+                                                                                           false,
+                                                                                           new Vector3());
+                                client.SendInstantMessage(gridMsg_notice);
+
+                                // Show the confirm link in IM window.
+                                GridInstantMessage gridMsg_link = new GridInstantMessage(null,
+                                                                                         UUID.Zero,
+                                                                                         "MonyServer",
+                                                                                         new UUID(clientUUID.ToString()),
+                                                                                         (byte)InstantMessageDialog.MessageFromAgent,
+                                                                                         (string)requestParam["URI"],
+                                                                                         false,
+                                                                                         new Vector3());
+                                client.SendInstantMessage(gridMsg_link);
+
+                                ret = true;
+                            }
+                        }
+                    }
+                }
+            }
+
+            #endregion
+
+            // Send the response to money server.
+            XmlRpcResponse resp = new XmlRpcResponse();
+            Hashtable paramTable = new Hashtable();
+            paramTable["success"] = ret;
+            if (!ret)
+            {
+                m_log.ErrorFormat("[MONEY]: Cannot get or deliver the confirm link from MoneyServer.");
+            }
+            resp.Value = paramTable;
+
+            return resp;
+        }
 
 		// "GetBalance" RPC from Script
 		public XmlRpcResponse GetBalanceHandler(XmlRpcRequest request, IPEndPoint remoteClient)
