@@ -45,7 +45,7 @@ namespace OpenSim.Data.MySQL.MySQLMoneyDataWrapper
 
 		// by Fumi.Iseki
         private string Table_of_Transaction = "transactions";
-        private string Table_of_Balance     = "balances";
+        private string Table_of_Balance     = "player_info";
         //private string Table_of_UserInfo    = "currency_users";	// for Aurora-Sim
         private string Table_of_UserInfo    = "userinfo";
 
